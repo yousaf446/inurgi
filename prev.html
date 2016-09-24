@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no"/>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <title>Google Maps Animated Route</title>
+
+    <link href="scripts/jquery-ui-Slider/css/jquery-ui-slider-pips.css" rel="stylesheet">
+    <style>
+        html{height:100%;}
+        body{height:100%;margin:0px;font-family: Helvetica,Arial;}
+        @media only screen and (min-width: 960px) and (max-width: 1920px) {
+            .pac-input {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 12px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 400px;
+            }
+
+            .pac-input:focus {
+                border-color: #4d90fe;
+            }
+            .pac-input2 {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 12px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 400px;
+            }
+
+            .pac-input2:focus {
+                border-color: #4d90fe;
+            }
+            .controls {
+                margin-top: 16px;
+                border: 1px solid transparent;
+                border-radius: 2px 0 0 2px;
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                height: 32px;
+                outline: none;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            }
+        }
+        @media only screen and (min-width: 768px) and (max-width: 950px) {
+            .pac-input {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 12px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 300px;
+            }
+
+            .pac-input:focus {
+                border-color: #4d90fe;
+            }
+            .pac-input2 {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 12px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 300px;
+            }
+
+            .pac-input2:focus {
+                border-color: #4d90fe;
+            }
+            .controls {
+                margin-top: 16px;
+                border: 1px solid transparent;
+                border-radius: 2px 0 0 2px;
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                height: 32px;
+                outline: none;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            }
+        }
+        @media only screen and (min-width: 320px) and (max-width: 767px) {
+            .pac-input {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 12px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 220px;
+            }
+
+            .pac-input2:focus {
+                border-color: #4d90fe;
+            }
+            .pac-input2 {
+                background-color: #fff;
+                font-family: Roboto;
+                font-size: 15px;
+                font-weight: 300;
+                margin-left: 18px;
+                padding: 0 11px 0 13px;
+                text-overflow: ellipsis;
+                width: 220px;
+            }
+
+            .pac-input:focus {
+                border-color: #4d90fe;
+            }
+            .controls {
+                margin-top: 16px;
+                border: 1px solid transparent;
+                border-radius: 2px 0 0 2px;
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                height: 32px;
+                outline: none;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            }
+        }
+        .type-selector {
+            color: #fff;
+            background-color: #4d90fe;
+            height:32px;
+            padding: 0 11px 0 13px;
+        }
+        .pac-input label {
+            font-family: Roboto;
+            font-size: 13px;
+            font-weight: 300;
+        }
+
+    </style>
+
+    <script src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry&language=en"></script>
+    <script type ="text/javascript" src="scripts/v3_epoly.js"></script>
+    <!-- include the jQuery and jQuery UI scripts -->
+    <script src="https://code.jquery.com/jquery-2.1.1.js"></script>
+    <script src="https://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+
+    <!-- plus a jQuery UI theme, here I use "flick" -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/flick/jquery-ui.css">
+    <script type ="text/javascript" src="scripts/jquery-ui-Slider/js/jquery-ui-slider-pips.js"></script>
+
+    <script type="text/javascript">
+
+        var map;
+        var directionDisplay;
+        var directionsService;
+        var stepDisplay;
+        var markerArray = [];
+        var position;
+        var marker = null;
+        var start_marker = null;
+        var end_marker = null;
+        var polyline = null;
+        var poly2 = null;
+        var speed = 0.000005, wait = 1;
+        var infowindow = null;
+        var new_poly = new google.maps.Polyline({
+            strokeColor: 'blue',
+            strokeWeight: 3,
+            geodesic:false
+        });
+        var myPano;
+        var panoClient;
+        var nextPanoId;
+        var timerHandle = null;
+        var steps_counter =0;
+        var step = 100;
+        var geodesic = false;
+        var scriptFolder = location.pathname.substr(0, location.pathname.lastIndexOf( '/' )+1 );
+        function createMarker(latlng, label, html,name) {
+// alert("createMarker("+latlng+","+label+","+html+","+color+")");
+            var contentString = '<b>'+label+'</b><br>'+html;
+            var image = new google.maps.MarkerImage(
+                    scriptFolder+"images/"+name+".png",
+                    null, /* size is determined at runtime */
+                    null, /* origin is 0,0 */
+                    null, /* anchor is bottom center of the scaled image */
+                    new google.maps.Size(32,32)
+            );
+            var marker = new google.maps.Marker({
+                position: latlng,
+                map: map,
+                title: label,
+                icon: image
+            });
+            marker.myname = label;
+            // gmarkers.push(marker);
+
+            google.maps.event.addListener(marker, 'click', function() {
+                infowindow.setContent(contentString);
+                infowindow.open(map,marker);
+            });
+            return marker;
+        }
+
+
+        function initialize() {
+            var width = window.innerWidth
+                    || document.documentElement.clientWidth
+                    || document.body.clientWidth;
+            if(width >= 320 && width <= 768) {
+                $(".slider")
+
+                        .slider({
+                            min: 1,
+                            max: 21,
+                            step: 2
+                        })
+                        .slider("pips", {
+                            rest: "label",
+                            step: 1
+                        })
+                        .slider("float");
+            } else if(width > 768 && width <= 980) {
+                $(".slider")
+
+                        .slider({
+                            min: 1,
+                            max: 21,
+                            step: 1
+                        })
+                        .slider("pips", {
+                            rest: "label",
+                            step: 1
+                        })
+                        .slider("float");
+            } else if(width > 980) {
+                $(".slider")
+
+                        .slider({
+                            min: 0.5,
+                            max: 20,
+                            step: 0.5
+                        })
+                        .slider("pips", {
+                            rest: "label",
+                            step: 1
+                        })
+                        .slider("float");
+            }
+
+            infowindow = new google.maps.InfoWindow(
+                    {
+                        size: new google.maps.Size(150,50)
+                    });
+            // Instantiate a directions service.
+            directionsService = new google.maps.DirectionsService();
+
+            // Create a map and center it on Manhattan.
+            var myOptions = {
+                zoom: 13,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            }
+            map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+            // Create a renderer for directions and bind it to the map.
+            var rendererOptions = {
+                map: map
+            }
+            directionsDisplay = new google.maps.DirectionsRenderer(rendererOptions);
+
+            // Instantiate an info window to hold step text.
+            stepDisplay = new google.maps.InfoWindow();
+
+            polyline = new google.maps.Polyline({
+                path: [],
+                strokeColor: '#FF0000',
+                strokeWeight: 3
+            });
+            poly2 = new google.maps.Polyline({
+                path: [],
+                strokeColor: '#FF0000',
+                strokeWeight: 3
+            });
+            var auto_options = {
+                types: ['geocode'],
+                componentRestrictions: {country: "us"}
+            };
+            address = 'new york'
+            geocoder = new google.maps.Geocoder();
+            geocoder.geocode( { 'address': address}, function(results, status) {
+                map.setCenter(results[0].geometry.location);
+            });
+            var start = document.getElementById("start");
+            var end = document.getElementById("end");
+            var autocomplete_start = new google.maps.places.Autocomplete(start, auto_options);
+            var autocomplete_end = new google.maps.places.Autocomplete(end, auto_options);
+            google.maps.event.addListener(autocomplete_start, 'place_changed', function() {
+                var place = autocomplete_start.getPlace();
+                if (!place.geometry) {//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                    return;
+                }
+                document.getElementById('start_crd').value = place.geometry.location;
+            });
+            google.maps.event.addListener(autocomplete_end, 'place_changed', function() {
+                var place = autocomplete_end.getPlace();
+                if (!place.geometry) {//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                    return;
+                }
+                document.getElementById('end_crd').value = place.geometry.location;
+            });
+        }
+        var steps = []
+
+        function calcRoute(){
+            geodesic = false;
+            step = parseFloat($(".ui-slider-tip").html()) * 1000;
+            var start = document.getElementById("start_crd").value;
+            var end = document.getElementById("end_crd").value;
+            var start_adr = document.getElementById("start").value;
+            var end_adr = document.getElementById("end").value;
+            if(start != "" && end != "") {
+                steps_counter = 0;
+                if (timerHandle) { clearTimeout(timerHandle); }
+                if (marker) { marker.setMap(null);}
+                if (start_marker) { start_marker.setMap(null);}
+                if (end_marker) { end_marker.setMap(null);}
+                polyline.setMap(null);
+                poly2.setMap(null);
+                directionsDisplay.setMap(null);
+                polyline = new google.maps.Polyline({
+                    path: [],
+                    strokeColor: '#FF0000',
+                    strokeWeight: 3
+                });
+                poly2 = new google.maps.Polyline({
+                    path: [],
+                    strokeColor: '#FF0000',
+                    strokeWeight: 3
+                });
+                var path_type = 1;
+                if($("#path").val() != 0)
+                    path_type = $("#path").val();
+                // Create a renderer for directions and bind it to the map.
+                var rendererOptions = {
+                    map: map
+                }
+                directionsDisplay = new google.maps.DirectionsRenderer(rendererOptions);
+                var travelMode = google.maps.DirectionsTravelMode.DRIVING;
+
+                var request = {
+                    origin: start,
+                    destination: end,
+                    travelMode: travelMode
+                };
+
+                // Route the directions and pass the response to a
+                // function to create markers for each step.
+                var bounds = new google.maps.LatLngBounds();
+                directionsService.route(request, function(response, status) {
+                    if (status == google.maps.DirectionsStatus.OK){
+                        //directionsDisplay.setDirections(response);
+
+                        var route = response.routes[0];
+                        startLocation = new Object();
+                        endLocation = new Object();
+
+                        // For each route, display summary information.
+                        var path = response.routes[0].overview_path;
+                        var legs = response.routes[0].legs;
+                        for (i=0;i<legs.length;i++) {
+                            if (i == 0) {
+                                startLocation.latlng = legs[i].start_location;
+                                startLocation.address = legs[i].start_address;
+                                start_marker = createMarker(legs[i].start_location,"Start Point",start_adr,"start_mark");
+                                marker = createMarker(legs[i].start_location,"Moving",start_adr,"middle_mark");
+                            }
+                            endLocation.latlng = legs[i].end_location;
+                            endLocation.address = legs[i].end_address;
+                            end_marker = createMarker(endLocation.latlng,"End Point",end_adr,"end_mark");
+                            var steps = legs[i].steps;
+                            if(path_type == 1) {
+                                for (j=0;j<steps.length;j++) {
+                                    var nextSegment = steps[j].path;
+                                    for (k=0;k<nextSegment.length;k++) {
+                                        polyline.getPath().push(nextSegment[k]);
+                                        bounds.extend(nextSegment[k]);
+                                    }
+                                }
+                            } else if(path_type == 2) {
+                                var aCrd = getLatLng();var new_start,new_end;
+                                for(var p=0;p<2;p++) {
+                                    var new_crd = aCrd[p].split(";");
+                                    if(p==0)
+                                        new_start = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                                    else
+                                        new_end = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                                }
+                                polyline.getPath().push(new_start);
+                                bounds.extend(new_start);
+                                polyline.getPath().push(new_end);
+                                bounds.extend(new_end);
+                            } else if(path_type == 3) {
+                                var aCrd = getLatLng();var new_start,new_end;
+                                for(var p=0;p<2;p++) {
+                                    var new_crd = aCrd[p].split(";");
+                                    if(p==0)
+                                        new_start = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                                    else
+                                        new_end = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                                }
+                                polyline.getPath().push(new_start);
+                                bounds.extend(new_start);
+                                polyline.getPath().push(new_end);
+                                bounds.extend(new_end);
+
+                                geodesic = true;
+                            }
+                        }
+                        new_poly.geodesic = geodesic;
+
+                        //polyline.setMap(map);
+                        map.fitBounds(bounds);
+//        createMarker(endLocation.latlng,"end",endLocation.address,"red");
+                        //map.setZoom(13);
+                        startAnimation();
+                    } else {
+                        if(path_type == 1) alert("Google Error!");
+                        else {
+                            var aCrd = getLatLng();var new_start,new_end;
+                            for(var p=0;p<2;p++) {
+                                var new_crd = aCrd[p].split(";");
+                                if(p==0)
+                                    new_start = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                                else
+                                    new_end = new google.maps.LatLng(new_crd[0], new_crd[1]);
+                            }
+                            polyline.getPath().push(new_start);
+                            bounds.extend(new_start);
+                            polyline.getPath().push(new_end);
+                            bounds.extend(new_end);
+                            start_marker = createMarker(new_start,"Start Point",start_adr,"start_mark");
+                            marker = createMarker(new_start,"Moving",start_adr,"middle_mark");
+                            end_marker = createMarker(new_end,"End Point",end_adr,"end_mark");
+                            if(path_type == 2) geodesic = false;
+                            else if(path_type == 3) geodesic = true;
+                            new_poly.geodesic = geodesic;
+                            map.fitBounds(bounds);
+
+                            startAnimation();
+                        }
+                    }
+                });
+            } else alert("Please Enter Both Start and End Point!");
+        }
+
+
+
+        var tick = 100; // milliseconds
+        var eol;
+        var k=0;
+        var stepnum=0;
+        var speed = "";
+        var lastVertex = 1;
+
+
+        //=============== animation functions ======================
+        function updatePoly(d) {
+            // Spawn a new polyline every 20 vertices, because updating a 100-vertex poly is too slow
+            if (poly2.getPath().getLength() > 20) {
+                poly2=new google.maps.Polyline([polyline.getPath().getAt(lastVertex-1)]);
+                // map.addOverlay(poly2)
+            }
+
+            if (polyline.GetIndexAtDistance(d) < lastVertex+2) {
+                if (poly2.getPath().getLength()>1) {
+                    poly2.getPath().removeAt(poly2.getPath().getLength()-1)
+                }
+                poly2.getPath().insertAt(poly2.getPath().getLength(),polyline.GetPointAtDistance(d));
+            } else {
+                poly2.getPath().insertAt(poly2.getPath().getLength(),endLocation.latlng);
+            }
+        }
+
+
+        function animate(d) {
+// alert("animate("+d+")");
+            if (d>eol) {
+                map.panTo(endLocation.latlng);
+                marker.setPosition(endLocation.latlng);
+                marker.setMap(null);
+                return;
+            }
+            var p = polyline.GetPointAtDistance(d);
+            map.panTo(p);
+            marker.setPosition(p);
+            updatePoly(d);
+            timerHandle = setTimeout("animate("+(d+step)+")", tick);
+            steps_counter++;
+        }
+
+        function addLatLng(event) {
+            if(steps_counter > 0) {
+                if(steps_counter == 1) new_poly.setMap(map);
+                var path = new_poly.getPath();
+                // Because path is an MVCArray, we can simply append a new coordinate
+                // and it will automatically appear.
+                path.push(event);
+            }
+            else new_poly.setPath([]);
+        }
+
+        function startAnimation() {
+            google.maps.event.addListener(move_marker, "position_changed", function (event) {
+                addLatLng(move_marker.getPosition());
+            });
+            eol=polyline.Distance();
+            map.setCenter(polyline.getPath().getAt(0));
+            // map.addOverlay(new google.maps.Marker(polyline.getAt(0),G_START_ICON));
+            // map.addOverlay(new GMarker(polyline.getVertex(polyline.getVertexCount()-1),G_END_ICON));
+            // marker = new google.maps.Marker({location:polyline.getPath().getAt(0)} /* ,{icon:car} */);
+            // map.addOverlay(marker);
+            poly2 = new google.maps.Polyline({path: [polyline.getPath().getAt(0)], strokeColor:"#0000FF", strokeWeight:10});
+            // map.addOverlay(poly2);
+            setTimeout("animate(50)",2000);  // Allow time for the initial map display
+        }
+
+        function getLatLng() {
+            var aCrd = [];
+            var latlngStr1 = $("#start_crd").val();
+            latlngStr1 = latlngStr1.replace("(", "");
+            latlngStr1 = latlngStr1.split(',', 2);
+            var lat1 = parseFloat(latlngStr1[0]);
+            var lng1 = parseFloat(latlngStr1[1]);
+            var latlngStr2 = $("#end_crd").val();
+            latlngStr2 = latlngStr2.replace("(", "");
+            latlngStr2 = latlngStr2.split(',', 2);
+            var lat2 = parseFloat(latlngStr2[0]);
+            var lng2 = parseFloat(latlngStr2[1]);
+            aCrd[0] = lat1+";"+lng1; aCrd[1] = lat2+";"+lng2;
+            return aCrd;
+        }
+
+        //=============== ~animation functions =====================
+
+
+    </script>
+</head>
+<body onload="initialize()">
+
+<div id="tools">
+    <label class="pac-input">Start</label>
+    <input type="text" class="controls pac-input" name="start" id="start" placeholder="Enter Start Location"/>
+    <label class="pac-input">End</label>
+    <input type="text" class="controls pac-input2" name="end" id="end" placeholder="Enter End Location"/>
+    <br/><br/>
+    <label class="pac-input">Path Type</label>
+    <select name="path" id="path">
+        <option>Select One</option>
+        <option value="1">Road Path</option>
+        <option value="2">Straight Line Path</option>
+        <option value="3">Trajectory Path</option>
+    </select>
+    <br/><br/>
+    <label class="pac-input">Step (in km)</label>
+    <div class="slider" style="margin-left:10px;margin-right:10px;"></div>
+    <br/>
+    <input type="submit" class="type-selector" value="Draw Route" onclick="calcRoute()"/>
+</div>
+<input type="hidden" id="start_crd" /> <input type="hidden" id="end_crd" />
+<br/>
+<div id="map_canvas" style="width:100%;height:100%;"></div>
+</body>
+</html>
