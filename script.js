@@ -26,6 +26,8 @@ var mark_counter = 0;
 
 var infowindow = new google.maps.InfoWindow();
 
+var bounds = new google.maps.LatLngBounds();
+
 function initialize() {
     map = new google.maps.Map(document.getElementById("map_canvas"),
         mapOptions);
@@ -47,9 +49,9 @@ function getGeoJSON() {
         bounds.extend(new_start);
         polyline.getPath().push(new_end);
         bounds.extend(new_end);
-        start_marker = createMarker(new_start,"Start Point",start_adr,"start_mark");
-        move_marker = createMarker(new_start,"Moving",start_adr,"middle_mark");
-        end_marker = createMarker(new_end,"End Point",end_adr,"end_mark");
+        start_marker = createMarker(new_start,"Start Point",'Start',"start_mark");
+        move_marker = createMarker(new_start,"Moving",'Move',"middle_mark");
+        end_marker = createMarker(new_end,"End Point",'End',"end_mark");
         map.fitBounds(bounds);
 
         startAnimation();
@@ -59,18 +61,12 @@ function getGeoJSON() {
 function createMarker(latlng, label, html,name) {
 // alert("createMarker("+latlng+","+label+","+html+","+color+")");
     var contentString = '<b>'+label+'</b><br>'+html;
-    var image = new google.maps.MarkerImage(
-        scriptFolder+"images/"+name+".png",
-        null, /* size is determined at runtime */
-        null, /* origin is 0,0 */
-        null, /* anchor is bottom center of the scaled image */
-        new google.maps.Size(32,32)
-    );
+
     var marker = new google.maps.Marker({
         position: latlng,
         map: map,
         title: label,
-        icon: image
+        //icon: image
     });
     marker.myname = label;
     // gmarkers.push(marker);
@@ -80,6 +76,31 @@ function createMarker(latlng, label, html,name) {
         infowindow.open(map,marker);
     });
     return marker;
+}
+
+var tick = 100; // milliseconds
+var eol;
+var k=0;
+var stepnum=0;
+var speed = "";
+var lastVertex = 1;
+var step= 20000;
+
+function updatePoly(d) {
+    // Spawn a new polyline every 20 vertices, because updating a 100-vertex poly is too slow
+    if (poly2.getPath().getLength() > 20) {
+        poly2=new google.maps.Polyline([polyline.getPath().getAt(lastVertex-1)]);
+        // map.addOverlay(poly2)
+    }
+
+    if (polyline.GetIndexAtDistance(d) < lastVertex+2) {
+        if (poly2.getPath().getLength()>1) {
+            poly2.getPath().removeAt(poly2.getPath().getLength()-1)
+        }
+        poly2.getPath().insertAt(poly2.getPath().getLength(),polyline.GetPointAtDistance(d));
+    } else {
+        poly2.getPath().insertAt(poly2.getPath().getLength(),endLocation.latlng);
+    }
 }
 
 function animate(d) {
@@ -110,8 +131,8 @@ function addLatLng(event) {
 }
 
 function startAnimation() {
-    google.maps.event.addListener(marker, "position_changed", function (event) {
-        addLatLng(marker.getPosition());
+    google.maps.event.addListener(move_marker, "position_changed", function (event) {
+        addLatLng(move_marker.getPosition());
     });
     eol=polyline.Distance();
     map.setCenter(polyline.getPath().getAt(0));
@@ -121,7 +142,7 @@ function startAnimation() {
     // map.addOverlay(marker);
     poly2 = new google.maps.Polyline({path: [polyline.getPath().getAt(0)], strokeColor:"#0000FF", strokeWeight:10});
     // map.addOverlay(poly2);
-    setTimeout("animate(50)",2000);  // Allow time for the initial map display
+    setTimeout("animate(50)",100);  // Allow time for the initial map display
 }
 
 google.maps.event.addDomListener(window, 'load', initialize);

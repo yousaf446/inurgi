@@ -10,11 +10,7 @@ var bounds = new google.maps.LatLngBounds();
 var steps_counter = [];
 var speed = 0.000005, wait = 1;
 var infowindow = null;
-var new_poly = new google.maps.Polyline({
-    strokeColor: 'blue',
-    strokeWeight: 3,
-    geodesic:false
-});
+var new_poly = [];
 var Colors = ["#FF0000", "#00FF00", "#0000FF"];
 
 
@@ -65,6 +61,7 @@ function setRoutes() {
 
 
     function makeRouteCallback(routeNum){
+        steps_counter[routeNum] = 0;
         var new_start = new google.maps.LatLng(relations[0]['user'].lat, relations[0]['user'].lon);
         var new_end = new google.maps.LatLng(relations[0]['first_degree'][routeNum].lat, relations[0]['first_degree'][routeNum].lon);
         start_marker[routeNum] = createMarker(new_start,"Start Point",'Start', true , routeNum);
@@ -76,14 +73,16 @@ function setRoutes() {
             strokeWeight: 3
         });
 
-        poly2[routeNum] = new google.maps.Polyline({
-            path: [],
-            strokeColor: '#FFFF00',
-            strokeWeight: 3
+        new_poly[routeNum] = new google.maps.Polyline({
+            strokeColor: 'blue',
+            strokeWeight: 3,
+            geodesic:false,
+            map: map
         });
         polyline[routeNum].getPath().push(new_start);
         bounds.extend(new_start);
         polyline[routeNum].getPath().push(new_end);
+        bounds.extend(new_end);
         map.fitBounds(bounds);
 
         startAnimation(routeNum);
@@ -120,29 +119,28 @@ function setRoutes() {
         if (d>eol) {
             //map.panTo(end_marker[index].getPosition());
             move_marker[index].setPosition(end_marker[index].getPosition());
-            move_marker[index].setMap(null);
+            move_marker[index].setVisible(false);
             end_marker[index].setVisible(true);
             return;
         }
         var p = polyline[index].GetPointAtDistance(d);
         //map.panTo(p);
-        move_marker[index].setPosition(p);
+        if(p != null) move_marker[index].setPosition(p);
         updatePoly(d, index);
         timerHandle = setTimeout("animate("+(d+step)+", "+index+")", tick);
         steps_counter[index]++;
     }
 
     function addLatLng(event, index) {
-        if(steps_counter[index] > 0) {
-            if(steps_counter[index] == 1) new_poly.setMap(map);
-            var path = new_poly.getPath();
+        //if(steps_counter[index] > 0) {
+            if(event.lat() != null) new_poly[index].getPath().push(event);
             // Because path is an MVCArray, we can simply append a new coordinate
             // and it will automatically appear.
-            path.push(event);
-            bounds.extend(event);
-            map.fitBounds(bounds);
-        }
-        else new_poly.setPath([]);
+            //path.push(event);
+            //bounds.extend(event);
+            //map.fitBounds(bounds);
+        //}
+        //else new_poly[index].setPath([]);
     }
 
     function startAnimation(index) {
