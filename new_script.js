@@ -13,7 +13,7 @@ var infowindow = null;
 var new_poly = [];
 var Colors = ["#FF0000", "#00FF00", "#0000FF"];
 
-
+var mark_counter = 0;
 function initialize() {
 
     infowindow = new google.maps.InfoWindow(
@@ -23,7 +23,7 @@ function initialize() {
 
     var myOptions = {
         zoom: 10,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
+        mapTypeId: google.maps.MapTypeId.SATELLITE
     }
     map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
 
@@ -31,8 +31,10 @@ function initialize() {
 }
 
 
-function createMarker(latlng, label, html, visible, id) {
+function createMarker(latlng, label, html, visible, id, symbol) {
 // alert("createMarker("+latlng+","+label+","+html+","+color+")");
+
+    var icon = getSymbol(symbol);
     var contentString = '<b>'+label+'</b><br>'+html;
     var marker = new google.maps.Marker({
         position: latlng,
@@ -42,6 +44,8 @@ function createMarker(latlng, label, html, visible, id) {
         visible: visible,
         zIndex: Math.round(latlng.lat()*-100000)<<5
     });
+
+    if(symbol != "") marker.setIcon(icon);
     marker.myname = label;
 
 
@@ -55,7 +59,8 @@ function createMarker(latlng, label, html, visible, id) {
 function setRoutes() {
 
     for (var i in relations[0]['first_degree']) {
-        makeRouteCallback(i);
+        makeRouteCallback(mark_counter);
+        mark_counter++;
     }
 }
 
@@ -64,17 +69,17 @@ function setRoutes() {
         steps_counter[routeNum] = 0;
         var new_start = new google.maps.LatLng(relations[0]['user'].lat, relations[0]['user'].lon);
         var new_end = new google.maps.LatLng(relations[0]['first_degree'][routeNum].lat, relations[0]['first_degree'][routeNum].lon);
-        start_marker[routeNum] = createMarker(new_start,"Start Point",'Start', true , routeNum);
-        move_marker[routeNum] = createMarker(new_start,"Moving",'Move', true, routeNum);
-        end_marker[routeNum] = createMarker(new_end,"End Point",'End', false, routeNum);
+        start_marker[routeNum] = createMarker(new_start,"Start Point",'Start', true , routeNum, "star");
+        move_marker[routeNum] = createMarker(new_start,"Moving",'Move', false, routeNum, "");
+        end_marker[routeNum] = createMarker(new_end,"End Point",'End', false, routeNum, "green");
         polyline[routeNum] = new google.maps.Polyline({
             path: [],
-            strokeColor: '#FFFF00',
+            strokeColor: '#44D768',
             strokeWeight: 3
         });
 
         new_poly[routeNum] = new google.maps.Polyline({
-            strokeColor: 'blue',
+            strokeColor: '#44D768',
             strokeWeight: 3,
             geodesic:false,
             map: map
@@ -89,7 +94,36 @@ function setRoutes() {
 
 }
 
-    var tick = 100; // milliseconds
+function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
+    steps_counter[routeNum] = 0;
+    var new_start = new google.maps.LatLng(relations[0]['first_degree'][primaryRoute].lat, relations[0]['first_degree'][primaryRoute].lon);
+    var new_end = new google.maps.LatLng(relations[0]['first_degree'][primaryRoute]['second_degree'][secondRoute].lat, relations[0]['first_degree'][primaryRoute]['second_degree'][secondRoute].lon);
+    start_marker[routeNum] = createMarker(new_start,"Start Point",'Start', false , routeNum, "");
+    move_marker[routeNum] = createMarker(new_start,"Moving",'Move', false, routeNum, "");
+    end_marker[routeNum] = createMarker(new_end,"End Point",'End', false, routeNum, "blue");
+    polyline[routeNum] = new google.maps.Polyline({
+        path: [],
+        strokeColor: '#449DD7',
+        strokeWeight: 3
+    });
+
+    new_poly[routeNum] = new google.maps.Polyline({
+        strokeColor: '#449DD7',
+        strokeWeight: 3,
+        geodesic:false,
+        map: map
+    });
+    polyline[routeNum].getPath().push(new_start);
+    bounds.extend(new_start);
+    polyline[routeNum].getPath().push(new_end);
+    bounds.extend(new_end);
+    map.fitBounds(bounds);
+
+    startAnimation(routeNum);
+
+}
+
+    var tick = 50; // milliseconds
     var eol;
     var k=0;
     var stepnum=0;
@@ -119,8 +153,11 @@ function setRoutes() {
         if (d>eol) {
             //map.panTo(end_marker[index].getPosition());
             move_marker[index].setPosition(end_marker[index].getPosition());
-            move_marker[index].setVisible(false);
             end_marker[index].setVisible(true);
+            for(var i in relations[0]['first_degree'][index]['second_degree']) {
+                makeRouteCallbackSecond(index, i, mark_counter);
+                mark_counter++;
+            }
             return;
         }
         var p = polyline[index].GetPointAtDistance(d);
@@ -155,8 +192,37 @@ function setRoutes() {
         // map.addOverlay(marker);
         poly2[index] = new google.maps.Polyline({path: [polyline[index].getPath().getAt(0)], strokeColor:"#0000FF", strokeWeight:10});
         // map.addOverlay(poly2);
-        setTimeout("animate(50, "+index+")",2000);  // Allow time for the initial map display
+        setTimeout("animate(0, "+index+")",50);  // Allow time for the initial map display
     }
+
+function getSymbol(symbol) {
+    var icon = "";
+    if(symbol == "green") {
+        icon = {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 5,
+            strokeColor: '#44D768',
+            fillColor: '#44D768'
+        };
+    } else if(symbol == "blue") {
+        icon = {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 5,
+            strokeColor: '#449DD7',
+            fillColor: '#449DD7'
+        }
+    } else if(symbol == "star") {
+        icon = new google.maps.MarkerImage(
+            "user.png",
+            null, /* size is determined at runtime */
+            null, /* origin is 0,0 */
+            new google.maps.Point(16, 16), /* anchor is bottom center of the scaled image */
+            new google.maps.Size(32, 32)
+        );
+    }
+
+    return icon;
+}
 
 //----------------------------------------------------------------------------
 google.maps.event.addDomListener(window,'load',initialize);
