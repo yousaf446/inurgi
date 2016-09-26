@@ -1,17 +1,12 @@
 var map;
-var directionDisplay;
-var directionsService;
-var stepDisplay;
-
-var position;
 var marker = [];
 var polyline = [];
 var poly2 = [];
-var poly = null;
-var startLocation = [];
-var endLocation = [];
+var start_marker = [];
+var end_marker = [];
+var move_marker = [];
 var timerHandle = [];
-
+var bounds = new google.maps.LatLngBounds();
 
 var speed = 0.000005, wait = 1;
 var infowindow = null;
@@ -38,17 +33,18 @@ function initialize() {
         map.fitBounds(results[0].geometry.viewport);
 
     });
-    // setRoutes();
+    setRoutes();
 }
 
 
-function createMarker(latlng, label, html) {
+function createMarker(latlng, label, html, visible) {
 // alert("createMarker("+latlng+","+label+","+html+","+color+")");
     var contentString = '<b>'+label+'</b><br>'+html;
     var marker = new google.maps.Marker({
         position: latlng,
         map: map,
         title: label,
+        visible: visible,
         zIndex: Math.round(latlng.lat()*-100000)<<5
     });
     marker.myname = label;
@@ -61,155 +57,107 @@ function createMarker(latlng, label, html) {
     return marker;
 }
 
-function setRoutes(){
+function setRoutes() {
 
-    var directionsDisplay = new Array();
+    for (var i in relations['first_degree']) {
+        makeRouteCallback(i);
+    }
+}
 
-    for (var i in relations){
-        startLoc =
-        var rendererOptions = {
-            map: map,
-            suppressMarkers : true,
-            preserveViewport: true
+
+    function makeRouteCallback(routeNum){
+
+        var new_start = new google.maps.LatLng(relations['user'].lat, relations['user'].lon);
+        var new_end = new google.maps.LatLng(relations['first_degree'][routeNum].lat, relations['first_degree'][routeNum].lon);
+        start_marker[routeNum] = createMarker(new_start,"Start Point",'Start', true);
+        move_marker[routeNum] = createMarker(new_start,"Moving",'Move', true);
+        end_marker[routeNum] = createMarker(new_end,"End Point",'End', false);
+        polyline[routeNum] = new google.maps.Polyline({
+            path: [],
+            strokeColor: '#FFFF00',
+            strokeWeight: 3
+        });
+
+        poly2[routeNum] = new google.maps.Polyline({
+            path: [],
+            strokeColor: '#FFFF00',
+            strokeWeight: 3
+        });
+        polyline[routeNum].getPath().push(new_start);
+        bounds.extend(new_start);
+        polyline[routeNum].getPath().push(new_end);
+        map.fitBounds(bounds);
+
+        startAnimation(routeNum);
+
+}
+
+    var tick = 100; // milliseconds
+    var eol;
+    var k=0;
+    var stepnum=0;
+    var speed = "";
+    var lastVertex = 1;
+    var step= 20000;
+
+    function updatePoly(d, index) {
+        // Spawn a new polyline every 20 vertices, because updating a 100-vertex poly is too slow
+        if (poly2[index].getPath().getLength() > 20) {
+            poly2[index]=new google.maps.Polyline([polyline[index].getPath().getAt(lastVertex-1)]);
+            // map.addOverlay(poly2)
         }
-        directionsService = new google.maps.DirectionsService();
 
-        var travelMode = google.maps.DirectionsTravelMode.DRIVING;
-
-        var request = {
-            origin: startLoc[i],
-            destination: endLoc[i],
-            travelMode: travelMode
-        };
-
-        directionsService.route(request,makeRouteCallback(i,directionsDisplay[i]));
-
+        if (polyline[index].GetIndexAtDistance(d) < lastVertex+2) {
+            if (poly2[index].getPath().getLength()>1) {
+                poly2[index].getPath().removeAt(poly2[index].getPath().getLength()-1)
+            }
+            poly2[index].getPath().insertAt(poly2[index].getPath().getLength(),polyline[index].GetPointAtDistance(d));
+        } else {
+            poly2[index].getPath().insertAt(poly2[index].getPath().getLength(),end_marker[index].getPosition());
+        }
     }
 
-
-    function makeRouteCallback(routeNum,disp){
-        if (polyline[routeNum] && (polyline[routeNum].getMap() != null)) {
-            startAnimation(routeNum);
+    function animate(d, index) {
+// alert("animate("+d+")");
+        if (d>eol) {
+            map.panTo(end_marker[index].getPosition());
+            move_marker[index].setPosition(end_marker[index].getPosition());
+            move_marker[index].setMap(null);
             return;
         }
-        return function(response, status){
-
-            if (status == google.maps.DirectionsStatus.OK){
-
-                var bounds = new google.maps.LatLngBounds();
-                var route = response.routes[0];
-                startLocation[routeNum] = new Object();
-                endLocation[routeNum] = new Object();
-
-
-                polyline[routeNum] = new google.maps.Polyline({
-                    path: [],
-                    strokeColor: '#FFFF00',
-                    strokeWeight: 3
-                });
-
-                poly2[routeNum] = new google.maps.Polyline({
-                    path: [],
-                    strokeColor: '#FFFF00',
-                    strokeWeight: 3
-                });
-
-
-                // For each route, display summary information.
-                var path = response.routes[0].overview_path;
-                var legs = response.routes[0].legs;
-
-
-                disp = new google.maps.DirectionsRenderer(rendererOptions);
-                disp.setMap(map);
-                disp.setDirections(response);
-
-
-                //Markers
-                for (i=0;i<legs.length;i++) {
-                    if (i == 0) {
-                        startLocation[routeNum].latlng = legs[i].start_location;
-                        startLocation[routeNum].address = legs[i].start_address;
-                        // marker = google.maps.Marker({map:map,position: startLocation.latlng});
-                        marker[routeNum] = createMarker(legs[i].start_location,"start",legs[i].start_address,"green");
-                    }
-                    endLocation[routeNum].latlng = legs[i].end_location;
-                    endLocation[routeNum].address = legs[i].end_address;
-                    var steps = legs[i].steps;
-
-                    for (j=0;j<steps.length;j++) {
-                        var nextSegment = steps[j].path;
-                        var nextSegment = steps[j].path;
-
-                        for (k=0;k<nextSegment.length;k++) {
-                            polyline[routeNum].getPath().push(nextSegment[k]);
-                            //bounds.extend(nextSegment[k]);
-                        }
-
-                    }
-                }
-
-            }
-
-            polyline[routeNum].setMap(map);
-            //map.fitBounds(bounds);
-            startAnimation(routeNum);
-
-        } // else alert("Directions request failed: "+status);
-
+        var p = polyline[index].GetPointAtDistance(d);
+        map.panTo(p);
+        move_marker[index].setPosition(p);
+        updatePoly(d, index);
+        timerHandle = setTimeout("animate("+(d+step)+", "+index+")", tick);
+        steps_counter++;
     }
 
-}
-
-var lastVertex = 1;
-var stepnum=0;
-var step = 50; // 5; // metres
-var tick = 100; // milliseconds
-var eol= [];
-//----------------------------------------------------------------------
-function updatePoly(i,d) {
-    // Spawn a new polyline every 20 vertices, because updating a 100-vertex poly is too slow
-    if (poly2[i].getPath().getLength() > 20) {
-        poly2[i]=new google.maps.Polyline([polyline[i].getPath().getAt(lastVertex-1)]);
-        // map.addOverlay(poly2)
-    }
-
-    if (polyline[i].GetIndexAtDistance(d) < lastVertex+2) {
-        if (poly2[i].getPath().getLength()>1) {
-            poly2[i].getPath().removeAt(poly2[i].getPath().getLength()-1)
+    function addLatLng(event) {
+        if(steps_counter > 0) {
+            if(steps_counter == 1) new_poly.setMap(map);
+            var path = new_poly.getPath();
+            // Because path is an MVCArray, we can simply append a new coordinate
+            // and it will automatically appear.
+            path.push(event);
         }
-        poly2[i].getPath().insertAt(poly2[i].getPath().getLength(),polyline[i].GetPointAtDistance(d));
-    } else {
-        poly2[i].getPath().insertAt(poly2[i].getPath().getLength(),endLocation[i].latlng);
+        else new_poly.setPath([]);
     }
-}
-//----------------------------------------------------------------------------
 
-function animate(index,d) {
-    if (d>eol[index]) {
-
-        marker[index].setPosition(endLocation[index].latlng);
-        return;
+    function startAnimation(index) {
+        google.maps.event.addListener(move_marker[index], "position_changed", function (event) {
+            addLatLng(this.getPosition());
+        });
+        eol=polyline[index].Distance();
+        map.setCenter(polyline[index].getPath().getAt(0));
+        // map.addOverlay(new google.maps.Marker(polyline.getAt(0),G_START_ICON));
+        // map.addOverlay(new GMarker(polyline.getVertex(polyline.getVertexCount()-1),G_END_ICON));
+        // marker = new google.maps.Marker({location:polyline.getPath().getAt(0)} /* ,{icon:car} */);
+        // map.addOverlay(marker);
+        poly2[index] = new google.maps.Polyline({path: [polyline[index].getPath().getAt(0)], strokeColor:"#0000FF", strokeWeight:10});
+        // map.addOverlay(poly2);
+        setTimeout("animate(50, index)",2000);  // Allow time for the initial map display
     }
-    var p = polyline[index].GetPointAtDistance(d);
-
-    //map.panTo(p);
-    marker[index].setPosition(p);
-    updatePoly(index,d);
-    timerHandle[index] = setTimeout("animate("+index+","+(d+step)+")", tick);
-}
-
-//-------------------------------------------------------------------------
-
-function startAnimation(index) {
-    if (timerHandle[index]) clearTimeout(timerHandle[index]);
-    eol[index]=polyline[index].Distance();
-    map.setCenter(polyline[index].getPath().getAt(0));
-
-    poly2[index] = new google.maps.Polyline({path: [polyline[index].getPath().getAt(0)], strokeColor:"#FFFF00", strokeWeight:3});
-
-    timerHandle[index] = setTimeout("animate("+index+",50)",2000);  // Allow time for the initial map display
-}
 
 //----------------------------------------------------------------------------
 google.maps.event.addDomListener(window,'load',initialize);
