@@ -1,5 +1,4 @@
 var map;
-var marker = [];
 var polyline = [];
 var poly2 = [];
 var start_marker = [];
@@ -8,10 +7,8 @@ var move_marker = [];
 var timerHandle = [];
 var bounds = new google.maps.LatLngBounds();
 var steps_counter = [];
-var speed = 0.000005, wait = 1;
 var infowindow = null;
 var new_poly = [];
-var Colors = ["#FF0000", "#00FF00", "#0000FF"];
 
 var mark_counter = 0;
 function initialize() {
@@ -49,10 +46,10 @@ function createMarker(latlng, label, html, visible, id, symbol) {
     marker.myname = label;
 
 
-    google.maps.event.addListener(marker, 'click', function() {
+    /*google.maps.event.addListener(marker, 'click', function() {
         infowindow.setContent(contentString);
         infowindow.open(map,marker);
-    });
+    });*/
     return marker;
 }
 
@@ -132,10 +129,8 @@ function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
     var step= 20000;
 
     function updatePoly(d, index) {
-        // Spawn a new polyline every 20 vertices, because updating a 100-vertex poly is too slow
         if (poly2[index].getPath().getLength() > 20) {
             poly2[index]=new google.maps.Polyline([polyline[index].getPath().getAt(lastVertex-1)]);
-            // map.addOverlay(poly2)
         }
 
         if (polyline[index].GetIndexAtDistance(d) < lastVertex+2) {
@@ -149,9 +144,7 @@ function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
     }
 
     function animate(d, index) {
-// alert("animate("+d+")");
         if (d>eol) {
-            //map.panTo(end_marker[index].getPosition());
             move_marker[index].setPosition(end_marker[index].getPosition());
             end_marker[index].setVisible(true);
             for(var i in relations[0]['first_degree'][index]['second_degree']) {
@@ -161,7 +154,6 @@ function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
             return;
         }
         var p = polyline[index].GetPointAtDistance(d);
-        //map.panTo(p);
         if(p != null) move_marker[index].setPosition(p);
         updatePoly(d, index);
         timerHandle = setTimeout("animate("+(d+step)+", "+index+")", tick);
@@ -169,15 +161,7 @@ function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
     }
 
     function addLatLng(event, index) {
-        //if(steps_counter[index] > 0) {
-            if(event.lat() != null) new_poly[index].getPath().push(event);
-            // Because path is an MVCArray, we can simply append a new coordinate
-            // and it will automatically appear.
-            //path.push(event);
-            //bounds.extend(event);
-            //map.fitBounds(bounds);
-        //}
-        //else new_poly[index].setPath([]);
+        if(event.lat() != null) new_poly[index].getPath().push(event);
     }
 
     function startAnimation(index) {
@@ -185,13 +169,7 @@ function makeRouteCallbackSecond(primaryRoute, secondRoute, routeNum){
             addLatLng(this.getPosition(), this.id);
         });
         eol=polyline[index].Distance();
-        //map.setCenter(polyline[index].getPath().getAt(0));
-        // map.addOverlay(new google.maps.Marker(polyline.getAt(0),G_START_ICON));
-        // map.addOverlay(new GMarker(polyline.getVertex(polyline.getVertexCount()-1),G_END_ICON));
-        // marker = new google.maps.Marker({location:polyline.getPath().getAt(0)} /* ,{icon:car} */);
-        // map.addOverlay(marker);
         poly2[index] = new google.maps.Polyline({path: [polyline[index].getPath().getAt(0)], strokeColor:"#0000FF", strokeWeight:10});
-        // map.addOverlay(poly2);
         setTimeout("animate(0, "+index+")",50);  // Allow time for the initial map display
     }
 
@@ -220,7 +198,6 @@ function getSymbol(symbol) {
             new google.maps.Size(32, 32)
         );
     }
-
     return icon;
 }
 
