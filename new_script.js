@@ -20,7 +20,7 @@ function initialize() {
 
     var myOptions = {
         zoom: 10,
-        mapTypeId: google.maps.MapTypeId.SATELLITE
+        mapTypeId: google.maps.MapTypeId.HYBRID
     }
     map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
 
