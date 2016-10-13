@@ -11,6 +11,7 @@ var infowindow = null;
 var new_poly = [];
 
 var mark_counter = 0;
+var relations;
 function initialize() {
 
     infowindow = new google.maps.InfoWindow(
@@ -54,11 +55,13 @@ function createMarker(latlng, label, html, visible, id, symbol) {
 }
 
 function setRoutes() {
-
-    for (var i in relations[0]['first_degree']) {
-        makeRouteCallback(mark_counter);
-        mark_counter++;
-    }
+    $.get("http://inurgi.com/get_relations/50", function(response) {
+        relations = response;
+        for (var i in relations[0]['first_degree']) {
+            makeRouteCallback(mark_counter);
+            mark_counter++;
+        }
+    });
 }
 
 
