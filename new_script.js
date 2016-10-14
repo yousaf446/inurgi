@@ -55,13 +55,23 @@ function createMarker(latlng, label, html, visible, id, symbol) {
 }
 
 function setRoutes() {
-    $.get("http://inurgi.com/get_relations/50", function(response) {
-        relations = response;
-        for (var i in relations[0]['first_degree']) {
-            makeRouteCallback(mark_counter);
-            mark_counter++;
+    $.ajax({
+        url: 'http://inurgi.com/get_relations/50',
+        dataType: "json",
+        success: function(data){
+            relations = JSON.parse(data);
+            for (var i in relations[0]['first_degree']) {
+                makeRouteCallback(mark_counter);
+                mark_counter++;
+            }
+        },
+        error: function(data){
         }
     });
+}
+
+function callBackFunction(data) {
+    console.log(data);
 }
 
 
